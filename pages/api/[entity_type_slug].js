@@ -55,6 +55,7 @@ async function get(req, res) {
         queries
     );
     const rawEntityType = await EntityType.find({ slug: entity_type_slug });
+    const isSingleType = (rawEntityType[0].entity_type_variant === 'singleton');
 
     const initialFormat = {
         indexedData: {},
@@ -70,8 +71,8 @@ async function get(req, res) {
                     ...(!collection.indexedData[item.id]?.slug && {
                         slug: item.entities_slug,
                     }),
-                    ...(!collection.indexedData[item.id]?.[item.attributes_name] && {
-                        [item.attributes_name]: resolveValue(item),
+                    ...({
+                        [item.attributes_name]: resolveValue(item) ?? null,
                     }),
                 },
             },
@@ -91,10 +92,12 @@ async function get(req, res) {
                     [item.attribute_name]: {
                         type: item.attribute_type,
                         order: item.attribute_order,
+                        ...(item?.attribute_custom_name && { custom_name: item.attribute_custom_name })
                     },
                 }),
             },
             entity_type_id: item.entity_type_id,
+            variant: item.entity_type_variant,
             total_rows: rawData.total_rows,
         };
     }, initialMetadata);
@@ -103,7 +106,7 @@ async function get(req, res) {
     if (sortValue) data = sortData(dataTemp.indexedData, sortValue);
 
     const output = {
-        data: data ? { ...data } : dataTemp.indexedData,
+        data: isSingleType ? Object.values(dataTemp.indexedData)[0] : data ? { ...data } : dataTemp.indexedData,
         metadata: metadata,
     };
 
